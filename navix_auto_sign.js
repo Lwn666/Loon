@@ -1,38 +1,103 @@
-#!name = 探花TV 完整自动签到 (新版)
-#!desc = 采用通用请求头捕获 Cookie，不依赖外部 JS 脚本，并每日定时签到。
-#!author = @Kimi (由 编码助手 优化)
-#!category = 签到
+/**
+ * 探花TV 自动签到 + 双 Cookie 捕获
+ * 保存为 navix_auto_sign.js
+ */
 
-#================================================
-#
-# 新版使用说明 (2025-07-31 更新):
-# 1. 此版本不再依赖外部 JS 脚本来获取 Cookie，而是直接捕获请求头，稳定性更高。
-# 2. 首次使用前，请在 App 内退出登录。
-# 3. 启用下方的“🍪 Cookie捕获”开关。
-# 4. 返回 App 执行登录操作。Loon 会提示已将 Cookie 写入。
-# 5. 成功后，务必关闭“🍪 Cookie捕获”开关。
-#
-#================================================
+const $ = new Env('探花TV');
+const SIGN_URL = 'https://navix.site/api/sign-in';
+const COOKIE_KEY = 'navix_cookie';
 
-[Argument]
-# --> 开关类参数
-# 获取 Cookie 时开启，获取成功后关闭。
-捕获Cookie = switch,true,tag=🍪 Cookie捕获,desc=登录成功后，请关闭此开关
+/**************** 1. Cookie 捕获 ****************/
+if (typeof $request !== 'undefined') {
+  const h = $request.headers;
+  const rawCookie = (h['Cookie'] || h['cookie'] || '').split('; ')
+    .reduce((acc, cur) => {
+      const [k, v] = cur.split('=');
+      if (k && v) acc[k.trim()] = v.trim();
+      return acc;
+    }, {});
 
-# --> 输入类参数
-# 定义每日自动签到的时间。
-RunTime = input,"0 9 * * *",tag=⏰ 签到时间,desc=默认每天上午 09:00 执行签到
+  // 只保留需要的两个字段
+  const loginToken = rawCookie.loginToken;
+  const SESSION   = rawCookie.SESSION;
 
-[Script]
-# --- Cookie 捕获任务 (通用版) ---
-# 当检测到登录请求时，直接从该请求的头部 (Header) 提取 `cookie` 字段的值，
-# 并将其保存到持久化变量 `th_cookie` 中。
-http-request ^https?://(?:www\.)?navix\.site/api/sign-in, header-capture=th_cookie, key=cookie, enable={捕获Cookie}, tag=探花TV - 获取Cookie, img-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/tanhua.png
+  if (loginToken && SESSION) {
+    const cookieStr = `loginToken=${loginToken}; SESSION=${SESSION}`;
+    $.setdata(cookieStr, COOKIE_KEY);
+    $.msg('探花TV', '✅ Cookie 已保存', cookieStr);
+  } else {
+    $.msg('探花TV', '⚠️ 缺少 loginToken 或 SESSION', JSON.stringify(rawCookie));
+  }
+  $done();
+  return;
+}
 
-# --- 定时签到任务 ---
-# 此任务会读取已保存的 `th_cookie` 值，并用它来执行签到。
-# 注意：签到脚本依然需要外部 JS，但获取部分已替换。
-cron {RunTime} script-path=https://raw.githubusercontent.com/Lwn666/Loon/refs/heads/main/navix_auto_sign.js, tag=探花TV - 每日签到, timeout=15, img-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/tanhua.png
+/**************** 2. 自动签到 ****************/
+!(async () => {
+  const cookie = $.getdata(COOKIE_KEY);
+  if (!cookie) {
+    $.msg('探花TV', '❌ Cookie 不存在', '请先登录一次');
+    return;
+  }
 
-[MITM]
-hostname = navix.site
+  const opt = {
+    url: SIGN_URL,
+    method: 'POST',
+    headers: {
+      accept: 'application/json, text/javascript, */*; q=0.01',
+      'sec-fetch-site': 'same-origin',
+      'accept-encoding': 'gzip, deflate, br',
+      'sec-fetch-dest': 'empty',
+      'sec-fetch-mode': 'cors',
+      'content-length': '0',
+      referer: 'https://navix.site/sign_in?isLoggedIn=true&userIp=119.237.255.149&userCountry=Hong+Kong',
+      'accept-language': 'zh-SG,zh-CN;q=0.9,zh-Hans;q=0.8',
+      'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+      'x-requested-with': 'XMLHttpRequest',
+      origin: 'https://navix.site',
+      cookie: cookie
+    },
+    alpn: 'h2'
+  };
+
+  $httpClient.post(opt, (error, response, body) => {
+    let title = '探花签到结果';
+    let subtitle = '';
+    let message = '未知错误';
+
+    if (error) {
+      subtitle = '网络错误';
+      message = error;
+    } else {
+      subtitle = `HTTP ${response.status}`;
+      try {
+        const data = JSON.parse(body);
+        message = data.message || (response.status === 200 ? '签到成功' : body);
+      } catch (e) {
+        message = body;
+      }
+    }
+
+    $notification.post(title, subtitle, message);
+    console.log(`${title} - ${subtitle}: ${message}`);
+    $done();
+  });
+})();
+
+/**************** 迷你 Env ****************/
+function Env(t, s) {
+  return new (class {
+    constructor(t, s) {
+      this.name = t;
+    }
+    getdata(k) {
+      return $persistentStore.read(k);
+    }
+    setdata(v, k) {
+      return $persistentStore.write(v, k);
+    }
+    msg(title, subtitle, body) {
+      $notification.post(title, subtitle, body);
+    }
+  })(t, s);
+}
