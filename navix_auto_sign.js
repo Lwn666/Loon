@@ -1,6 +1,6 @@
 /**
- * 探花TV 自动签到 & Cookie 捕获
- * Loon 专用（单文件双入口）
+ * 探花TV 自动签到 + Cookie 捕获
+ * Loon 专用（已适配 POST /api/sign-in）
  * 保存为 navix_auto_sign.js
  */
 
@@ -8,18 +8,25 @@ const $ = new Env('探花TV');
 const SIGN_URL = 'https://navix.site/api/sign-in';
 const COOKIE_KEY = 'navix_cookie';
 
-/**************** 1. http-request 环境：捕获 Cookie ****************/
+/**************** 1. 捕获 Cookie（仅在 http-request 环境运行） ****************/
 if (typeof $request !== 'undefined') {
-  const cookieStr = $request.headers['Cookie'] || $request.headers['cookie'];
-  if (cookieStr && cookieStr.includes('loginToken')) {
+  // 合并所有 Cookie 头
+  const cookieArr = [];
+  if ($request.headers['Cookie']) cookieArr.push($request.headers['Cookie']);
+  if ($request.headers['cookie']) cookieArr.push($request.headers['cookie']);
+  const cookieStr = cookieArr.join('; ').trim();
+
+  if (cookieStr.includes('loginToken')) {
     $.setdata(cookieStr, COOKIE_KEY);
-    $.msg('探花TV', '✅ Cookie 已保存', cookieStr);
+    $.msg('探花TV', '✅ Cookie 已捕获', cookieStr);
+  } else {
+    $.msg('探花TV', '⚠️ 无有效 Cookie', cookieStr);
   }
   $done();
   return;
 }
 
-/**************** 2. cron 环境：自动签到 ****************/
+/**************** 2. 自动签到（仅在 cron 环境运行） ****************/
 !(async () => {
   const cookie = $.getdata(COOKIE_KEY);
   if (!cookie) {
@@ -63,7 +70,7 @@ if (typeof $request !== 'undefined') {
   });
 })();
 
-/**************** Env 迷你封装 ****************/
+/**************** 迷你 Env ****************/
 function Env(t, s) {
   return new (class {
     constructor(t, s) {
