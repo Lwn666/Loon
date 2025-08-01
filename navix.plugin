@@ -1,18 +1,18 @@
-#!name = 探花TV 自动签到
-#!desc = 自动签到 + Cookie 捕获（单文件）
+#!name = 探花TV 完整自动签到
+#!desc = 自动签到 + Cookie 捕获（已适配 POST /api/sign-in）
 #!author = @Kimi
 #!category = 签到
 
 [Argument]
-捕获Cookie = switch,true,tag=捕获Cookie开关,desc=首次登录后关闭，防止重复写入
-RunTime = input,"0 9 * * *",tag=签到时间,desc=默认每天 09:00，可自定义
+捕获Cookie = switch,true,tag=Cookie捕获,desc=首次登录后关闭，防止重复写入
+RunTime = input,"0 9 * * *",tag=签到时间,desc=默认每天 09:00
 
 [Script]
 # 主签到任务
 cron {RunTime} script-path=https://raw.githubusercontent.com/Lwn666/Loon/refs/heads/main/navix_auto_sign.js, tag=探花TV签到, timeout=15
 
-# Cookie 捕获（登录后触发）
-http-request ^https://navix\.site/api/sign-in script-path=https://raw.githubusercontent.com/Lwn666/Loon/refs/heads/main/navix_auto_sign.js, tag=探花TV获取Cookie, enable={捕获Cookie}
+# Cookie 捕获（POST /api/sign-in）
+http-request ^https?://(?:www\.)?navix\.site/api/sign-in script-path=https://raw.githubusercontent.com/Lwn666/Loon/refs/heads/main/navix_auto_sign.js, tag=探花TV获取Cookie, enable={捕获Cookie}
 
 [MITM]
 hostname = navix.site
