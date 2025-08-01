@@ -10,10 +10,10 @@ RunTime = input,"0 9 * * *",tag=签到时间,desc=默认每天 09:00，可自定
 
 [Script]
 # 主签到任务
-cron {RunTime} script-path=navix_auto_sign.js, tag=探花TV签到, timeout=15
+cron {RunTime} script-path=https://github.com/Lwn666/Loon/blob/main/navix_auto_sign.js, tag=探花TV签到, timeout=15
 
 # Cookie 捕获（登录后触发）
-http-request ^https://navix\.site/api/sign-in script-path=navix_auto_sign.js, tag=探花TV获取Cookie, enable={捕获Cookie}
+http-request ^https://navix\.site/api/sign-in script-path=https://github.com/Lwn666/Loon/blob/main/navix_auto_sign.js, tag=探花TV获取Cookie, enable={捕获Cookie}
 
 [MITM]
 hostname = navix.site
