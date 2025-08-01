@@ -4,7 +4,7 @@
  */
 
 const $ = new Env('探花TV');
-const SIGN_URL = 'https://navix.site';
+const SIGN_URL = 'https://navix.site/sign_in';
 const COOKIE_KEY = 'navix_cookie';
 
 /**************** 1. Cookie 捕获 ****************/
