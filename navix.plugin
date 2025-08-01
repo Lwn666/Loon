@@ -1,18 +1,43 @@
 #!name = 探花TV 完整自动签到
-#!desc = 自动签到 + Cookie 捕获（已适配 POST /api/sign-in）
-#!author = @Kimi
+#!desc = 每日定时自动签到，并提供首次登录时自动捕获 Cookie 的功能。请在成功捕获一次 Cookie 后，务必关闭“Cookie捕获”开关。
+#!author = @Kimi (由 编码助手 优化)
 #!category = 签到
+#!homepage = https://github.com/Lwn666/Loon
+
+#================================================
+#
+# 使用说明：
+# 1. 首次使用前，请确保下方的 [MITM] 配置已启用，并且“Cookie捕获”开关处于开启状态。
+# 2. 在 App 内手动登录一次账号，Loon 会提示 Cookie 获取成功。
+# 3. 获取成功后，请务必关闭“Cookie捕获”开关，以避免重复写入和不必要的资源消耗。
+# 4. 脚本将按照设定的时间自动执行签到。如果某天签到失败提示 Cookie 失效，请重复步骤 1-3。
+#
+# 注意：
+# 如果脚本 URL 失效，请将 [Script] 部分的 script-path 地址替换为新的可用链接。
+#
+#================================================
 
 [Argument]
-捕获Cookie = switch,true,tag=Cookie捕获,desc=首次登录后关闭，防止重复写入
-RunTime = input,"0 9 * * *",tag=签到时间,desc=默认每天 09:00
+# --> 开关类参数
+# 用于控制是否执行 Cookie 捕获的逻辑。建议仅在首次配置或 Cookie 失效时开启。
+捕获Cookie = switch,true,tag=🍪 Cookie捕获,desc=首次登录成功抓取到 Cookie 后，请关闭此开关
+
+# --> 输入类参数
+# 使用 Cron 表达式定义每日自动签到的时间。
+RunTime = input,"0 9 * * *",tag=⏰ 签到时间,desc=默认每天上午 09:00 执行签到
 
 [Script]
-# 主签到任务
-cron {RunTime} script-path=https://raw.githubusercontent.com/Lwn666/Loon/refs/heads/main/navix_auto_sign.js, tag=探花TV签到, timeout=15
+# --- 定时签到任务 ---
+# 此任务会根据上面设定的 `RunTime` 时间，携带已保存的 Cookie 自动执行签到操作。
+cron {RunTime} script-path=https://raw.githubusercontent.com/Lwn666/Loon/refs/heads/main/navix_auto_sign.js, tag=探花TV - 每日签到, timeout=15, img-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/tanhua.png
 
-# Cookie 捕获（POST /api/sign-in）
-http-request ^https?://(?:www\.)?navix\.site/api/sign-in script-path=https://raw.githubusercontent.com/Lwn666/Loon/refs/heads/main/navix_auto_sign.js, tag=探花TV获取Cookie, enable={捕获Cookie}
+# --- Cookie 捕获任务 ---
+# 当你登录时，此脚本会从发出的网络请求中自动抓取登录凭证 (Cookie)。
+# `enable={捕获Cookie}` 意味着这个任务的启用状态由上方的“Cookie捕获”开关控制。
+http-request ^https?://(?:www\.)?navix\.site/api/sign-in script-path=https://raw.githubusercontent.com/Lwn666/Loon/refs/heads/main/navix_auto_sign.js, tag=探花TV - 获取Cookie, enable={捕获Cookie}, img-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/tanhua.png
 
 [MITM]
+# --- 解密配置 ---
+# 只有配置了此项，Loon 才能解密并分析来自 `navix.site` 的 HTTPS 流量，
+# 从而让上面的“Cookie 捕获任务”能够成功执行。
 hostname = navix.site
